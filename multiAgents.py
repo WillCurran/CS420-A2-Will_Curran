@@ -15,6 +15,7 @@
 from util import manhattanDistance
 from game import Directions
 import random, util
+import sys
 
 from game import Agent
 
@@ -141,7 +142,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         if max_state == None or self.evaluationFunction(local_max_successor) > self.evaluationFunction(max_state):
           max_state = local_max_successor
           max_action = action
-      print "Max of " + str(self.evaluationFunction(max_state))
+      # print "Max of " + str(self.evaluationFunction(max_state))
       return (max_action, max_state)
     
     def minState(self, agentIndex, gameState, depth):
@@ -157,25 +158,13 @@ class MinimaxAgent(MultiAgentSearchAgent):
           local_min_successor = self.minState(agentIndex + 1, gameState.generateSuccessor(agentIndex, action), depth)[1]
         if min_state == None or self.evaluationFunction(local_min_successor) < self.evaluationFunction(min_state):
           min_state = local_min_successor
-      print "Min of " + str(self.evaluationFunction(min_state))
+      # print "Min of " + str(self.evaluationFunction(min_state))
       return (min_action, min_state)
     
     def getAction(self, gameState):
         """
           Returns the minimax action from the current gameState using self.depth
           and self.evaluationFunction.
-
-          Here are some method calls that might be useful when implementing minimax.
-
-          gameState.getLegalActions(agentIndex):
-            Returns a list of legal actions for an agent
-            agentIndex=0 means Pacman, ghosts are >= 1
-
-          gameState.generateSuccessor(agentIndex, action):
-            Returns the successor game state after an agent takes an action
-
-          gameState.getNumAgents():
-            Returns the total number of agents in the game
         """
         best_move = self.maxState(gameState, 0)
         # print "Choice is: " + str(self.evaluationFunction(best_move[0]))
@@ -187,11 +176,55 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
       Your minimax agent with alpha-beta pruning (question 3)
     """
 
+    def maxState(self, gameState, depth, a, b): # get max state or max action?
+      if gameState.isLose() or gameState.isWin() or depth >= self.depth:
+        return (None, gameState) # problem with no action here?
+      actions = gameState.getLegalActions()
+      max_state = None
+      max_action = None
+      for action in actions:
+        local_max_successor = self.minState(1, gameState.generateSuccessor(0, action), depth, a, b)[1] # is 1 here general enough?
+        if max_state == None or self.evaluationFunction(local_max_successor) > self.evaluationFunction(max_state):
+          max_state = local_max_successor
+          max_action = action
+        if self.evaluationFunction(max_state) > b:
+          # print "Returning by beta test: " + str(self.evaluationFunction(max_state))
+          return (max_action, max_state)
+        a = max(a, self.evaluationFunction(max_state))
+      # print "Max of " + str(self.evaluationFunction(max_state))
+      return (max_action, max_state)
+    
+    def minState(self, agentIndex, gameState, depth, a, b):
+      if gameState.isLose() or gameState.isWin():
+        return (None, gameState) # problem with no action here?
+      actions = gameState.getLegalActions(agentIndex)
+      min_state = None
+      min_action = None
+      for action in actions:
+        if agentIndex == gameState.getNumAgents() - 1:
+          local_min_successor = self.maxState(gameState.generateSuccessor(agentIndex, action), depth + 1, a, b)[1]
+        else:
+          local_min_successor = self.minState(agentIndex + 1, gameState.generateSuccessor(agentIndex, action), depth, a, b)[1]
+        if min_state == None or self.evaluationFunction(local_min_successor) < self.evaluationFunction(min_state):
+          min_state = local_min_successor
+        if self.evaluationFunction(min_state) < a:
+          # print "Returning by alpha test: " + str(self.evaluationFunction(min_state))
+          return (min_action, min_state)
+        b = min(b, self.evaluationFunction(min_state))
+      # print "Min of " + str(self.evaluationFunction(min_state))
+      return (min_action, min_state)
+    
     def getAction(self, gameState):
         """
-          Returns the minimax action using self.depth and self.evaluationFunction
+          Returns the minimax action from the current gameState using self.depth
+          and self.evaluationFunction.
         """
-        "*** YOUR CODE HERE ***"
+        a = -sys.maxsize
+        b = sys.maxsize
+        # print "A: " + str(a) + " B: " + str(b)
+        best_move = self.maxState(gameState, 0, a, b)
+        # print "Choice is: " + str(self.evaluationFunction(best_move[0]))
+        return best_move[0]
         util.raiseNotDefined()
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
