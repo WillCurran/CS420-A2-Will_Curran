@@ -72,12 +72,29 @@ class ReflexAgent(Agent):
         newPos = successorGameState.getPacmanPosition()
         newFood = successorGameState.getFood()
         newGhostStates = successorGameState.getGhostStates()
+        newGhostPos = successorGameState.getGhostPositions()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
         # was good for food heuristic before (but with maze dist)
-        food_distance_variable = 1.0/util.getMinManhattanToFood(newPos, newFood) - 1.0/util.getMaxManhattanToFood(newPos, newFood)
+        # food_distance_variable = 1.0/util.getMinManhattanToFood(newPos, newFood) - 1.0/util.getMaxManhattanToFood(newPos, newFood)
+        (min_to_food, max_to_food) = util.getMinMaxManhattanToFood(newPos, newFood)
+        # get which ghost is closest. if it's scared go towards it. else away
+        # maximize dist to closest ghost when not scared
+        close_ghost_data = util.getMinManhattanGhost(newPos, newGhostPos)
+        if newScaredTimes[close_ghost_data[0]] > 0:
+          ghost_term = 1/close_ghost_data[1] # go get ghosts
+        else:
+          if close_ghost_data[1] > 15: # try not to stay in the corner
+            ghost_term = 0
+          else:
+            ghost_term = close_ghost_data[1]/(2*(newFood.width + newFood.height)) # stay away from ghosts
+        # food term is not high-enough influence
+        food_term = currentGameState.getNumFood() - successorGameState.getNumFood() # current
+        food_dist_term = 1.0/(min_to_food + max_to_food) # future
 
-        print food_distance_variable
-        return food_distance_variable
+        print "ghost: " + str(ghost_term)
+        print "food num: " + str(food_term) # food increases in val as number decreases
+        print "food dist: " + str(food_dist_term)
+        return food_term + ghost_term + food_dist_term
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -113,7 +130,36 @@ class MinimaxAgent(MultiAgentSearchAgent):
     """
       Your minimax agent (question 2)
     """
-
+    def maxState(self, gameState, depth): # get max state or max action?
+      if gameState.isLose() or gameState.isWin() or depth >= self.depth:
+        return (None, gameState) # problem with no action here?
+      actions = gameState.getLegalActions()
+      max_state = None
+      max_action = None
+      for action in actions:
+        local_max_successor = self.minState(1, gameState.generateSuccessor(0, action), depth)[1] # is 1 here general enough?
+        if max_state == None or self.evaluationFunction(local_max_successor) > self.evaluationFunction(max_state):
+          max_state = local_max_successor
+          max_action = action
+      print "Max of " + str(self.evaluationFunction(max_state))
+      return (max_action, max_state)
+    
+    def minState(self, agentIndex, gameState, depth):
+      if gameState.isLose() or gameState.isWin():
+        return (None, gameState) # problem with no action here?
+      actions = gameState.getLegalActions(agentIndex)
+      min_state = None
+      min_action = None
+      for action in actions:
+        if agentIndex == gameState.getNumAgents() - 1:
+          local_min_successor = self.maxState(gameState.generateSuccessor(agentIndex, action), depth + 1)[1]
+        else:
+          local_min_successor = self.minState(agentIndex + 1, gameState.generateSuccessor(agentIndex, action), depth)[1]
+        if min_state == None or self.evaluationFunction(local_min_successor) < self.evaluationFunction(min_state):
+          min_state = local_min_successor
+      print "Min of " + str(self.evaluationFunction(min_state))
+      return (min_action, min_state)
+    
     def getAction(self, gameState):
         """
           Returns the minimax action from the current gameState using self.depth
@@ -131,7 +177,9 @@ class MinimaxAgent(MultiAgentSearchAgent):
           gameState.getNumAgents():
             Returns the total number of agents in the game
         """
-        "*** YOUR CODE HERE ***"
+        best_move = self.maxState(gameState, 0)
+        # print "Choice is: " + str(self.evaluationFunction(best_move[0]))
+        return best_move[0]
         util.raiseNotDefined()
 
 class AlphaBetaAgent(MultiAgentSearchAgent):

@@ -651,26 +651,29 @@ def unmutePrint():
     sys.stdout = _ORIGINAL_STDOUT
     #sys.stderr = _ORIGINAL_STDERR
 
-def manhattanDistance(xy1, xy2):
-    "Returns the Manhattan distance between points xy1 and xy2"
-    return abs( xy1[0] - xy2[0] ) + abs( xy1[1] - xy2[1] )
-
-def getMaxManhattanToFood(position, foodGrid):
-    max_dist_to_food = 0
-    for i in range(foodGrid.width):
-        for j in range(foodGrid.height):
-            if(foodGrid[i][j]):
-                d = manhattanDistance(position, (i, j))
-                if(d > max_dist_to_food):
-                    max_dist_to_food = d
-    return max_dist_to_food
-
-def getMinManhattanToFood(position, foodGrid):
+def getMinMaxManhattanToFood(position, foodGrid):
     min_dist_to_food = sys.maxint
+    max_dist_to_food = 0
     for i in range(foodGrid.width):
         for j in range(foodGrid.height):
             if(foodGrid[i][j]):
                 d = manhattanDistance(position, (i, j))
                 if(d < min_dist_to_food):
                     min_dist_to_food = d
-    return min_dist_to_food
+                if(d > max_dist_to_food):
+                    max_dist_to_food = d
+    return (min_dist_to_food, max_dist_to_food)
+
+def getMinManhattanGhost(position, ghostPos):
+    min_dist_to_ghost = sys.maxint
+    which_ghost = 0
+    d = []
+    for i in range(len(ghostPos)):
+        d.append(manhattanDistance(position, ghostPos[i]))
+        # print "ghost dist not norm = " + str(d[i])
+    # d_norm = normalize(d)
+    for i in range(len(d)):
+        if d[i] < min_dist_to_ghost:
+            min_dist_to_ghost = d[i]
+            which_ghost = i
+    return (which_ghost, min_dist_to_ghost)
