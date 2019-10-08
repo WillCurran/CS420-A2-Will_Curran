@@ -232,14 +232,53 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
       Your expectimax agent (question 4)
     """
 
+    def maxState(self, gameState, depth): # get max state or max action?
+      if gameState.isLose() or gameState.isWin() or depth >= self.depth:
+        return None
+      actions = gameState.getLegalActions()
+      max_eval = None
+      max_action = None
+      for action in actions:
+        expectation = self.expState(1, gameState.generateSuccessor(0, action), depth)
+        if max_action == None or expectation > max_eval:
+          max_eval = expectation
+          max_action = action
+      print "Max move: " + str(max_action)
+      return max_action
+      # get it to be a leaf by returning leaf through expState?
+      # can't be sure of which to choose
+    
+    def expState(self, agentIndex, gameState, depth):
+      # be sure to return states of leaves so max can see them
+      if gameState.isLose() or gameState.isWin():
+        return self.evaluationFunction(gameState)
+      actions = gameState.getLegalActions(agentIndex)
+      expectation = 0.0
+      for action in actions:
+        if agentIndex == gameState.getNumAgents() - 1:
+          successor = gameState.generateSuccessor(agentIndex, action) # this is a player
+          ma = self.maxState(successor, depth + 1) # the max action from this player gameState
+          if ma == None: # reached leaf
+            expectation += self.evaluationFunction(successor)
+          else: # get expectation of subtree which max has chosen -- REDUNDANT?
+            successor_2_along_max_path = successor.generateSuccessor(0, ma)
+            expectation += self.expState(1, successor_2_along_max_path, depth + 1) # get expectation of the chosen max action
+        else:
+          expectation += self.expState(agentIndex + 1, gameState.generateSuccessor(agentIndex, action), depth)
+      expectation /= float(len(actions))
+      return expectation
+    
     def getAction(self, gameState):
         """
-          Returns the expectimax action using self.depth and self.evaluationFunction
-
-          All ghosts should be modeled as choosing uniformly at random from their
-          legal moves.
+          Returns the minimax action from the current gameState using self.depth
+          and self.evaluationFunction.
         """
-        "*** YOUR CODE HERE ***"
+        a = -sys.maxsize
+        b = sys.maxsize
+        # print "A: " + str(a) + " B: " + str(b)
+        best_move = self.maxState(gameState, 0)
+        # print "Choice is: " + str(self.evaluationFunction(best_move[0]))
+        return best_move[0]
         util.raiseNotDefined()
 
 def betterEvaluationFunction(currentGameState):
