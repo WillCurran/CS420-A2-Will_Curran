@@ -278,7 +278,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         # print "A: " + str(a) + " B: " + str(b)
         best_move = self.maxState(gameState, 0)
         # print "Choice is: " + str(self.evaluationFunction(best_move[0]))
-        return best_move[0]
+        return best_move
         util.raiseNotDefined()
 
 def betterEvaluationFunction(currentGameState):
