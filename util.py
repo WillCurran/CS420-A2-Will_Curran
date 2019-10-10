@@ -670,8 +670,6 @@ def getMinManhattanGhost(position, ghostPos):
     d = []
     for i in range(len(ghostPos)):
         d.append(manhattanDistance(position, ghostPos[i]))
-        # print "ghost dist not norm = " + str(d[i])
-    # d_norm = normalize(d)
     for i in range(len(d)):
         if d[i] < min_dist_to_ghost:
             min_dist_to_ghost = d[i]

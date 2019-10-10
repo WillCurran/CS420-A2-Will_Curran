@@ -75,27 +75,36 @@ class ReflexAgent(Agent):
         newGhostStates = successorGameState.getGhostStates()
         newGhostPos = successorGameState.getGhostPositions()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
-        # was good for food heuristic before (but with maze dist)
-        # food_distance_variable = 1.0/util.getMinManhattanToFood(newPos, newFood) - 1.0/util.getMaxManhattanToFood(newPos, newFood)
+        
         (min_to_food, max_to_food) = util.getMinMaxManhattanToFood(newPos, newFood)
-        # get which ghost is closest. if it's scared go towards it. else away
-        # maximize dist to closest ghost when not scared
+        
         close_ghost_data = util.getMinManhattanGhost(newPos, newGhostPos)
-        if newScaredTimes[close_ghost_data[0]] > 0:
-          ghost_term = 1/close_ghost_data[1] # go get ghosts
-        else:
-          if close_ghost_data[1] > 15: # try not to stay in the corner
-            ghost_term = 0
-          else:
-            ghost_term = close_ghost_data[1]/(2*(newFood.width + newFood.height)) # stay away from ghosts
-        # food term is not high-enough influence
-        food_term = currentGameState.getNumFood() - successorGameState.getNumFood() # current
-        food_dist_term = 1.0/(min_to_food + max_to_food) # future
+        stay_alive = 0
+        food_dist_term = 0
+        if newScaredTimes[close_ghost_data[0]] == 0 and close_ghost_data[1] < 15 and close_ghost_data[1] > 0: # try not to stay in the corner
+          stay_alive = 1.0/close_ghost_data[1]
+        
+        food_term = currentGameState.getNumFood() - successorGameState.getNumFood() # did I just eat food?
+        if min_to_food != 0 and max_to_food != 0:
+          food_dist_term = 0.1/min_to_food
 
-        print "ghost: " + str(ghost_term)
-        print "food num: " + str(food_term) # food increases in val as number decreases
-        print "food dist: " + str(food_dist_term)
-        return food_term + ghost_term + food_dist_term
+        get_points = 0
+        score_delta = successorGameState.getScore() - currentGameState.getScore()
+
+        if score_delta >= 100:
+          # print "eval: 1"
+          return 1 # you should eat a ghost if won't die immediately (usually), should always go to win state
+        if newScaredTimes[close_ghost_data[0]] > 0 and newScaredTimes[close_ghost_data[0]] >= close_ghost_data[1]: # if we can eat the closest ghost, go all-out for it
+          get_points = 1.0/close_ghost_data[1] # go get ghosts
+        elif newScaredTimes[close_ghost_data[0]] == 0 and close_ghost_data[1] < 3:
+          get_points = 0 # if about to die get out of there
+        else:
+          get_points = food_dist_term + 0.25*food_term # default is try to get more food in short & very short term
+        
+        # print "eval: " + str(get_points - 0.5*stay_alive)
+        # print "food num: " + str(food_term) # food increases in val as number decreases
+        # print "food dist: " + str(food_dist_term)
+        return get_points - 0.5*stay_alive
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -243,7 +252,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         if max_action == None or expectation > max_eval:
           max_eval = expectation
           max_action = action
-      print "Max move: " + str(max_action)
+      # print "Max move: " + str(max_action)
       return max_action
       # get it to be a leaf by returning leaf through expState?
       # can't be sure of which to choose
@@ -286,9 +295,95 @@ def betterEvaluationFunction(currentGameState):
       Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
       evaluation function (question 5).
 
-      DESCRIPTION: <write something here so we know what you did>
+      DESCRIPTION: 
+        MINIMIZE food closeness - less important if many ghosts
+        - add reciprocal
+        - priority 3
+        MINIMIZE min ghost distance if a) scared and b) manhattan <= time scared - more important if many ghosts
+        - add reciprocal
+        - priority 4
+        MAXIMIZE min ghost distance if not scared - more important if many ghosts - this is how you stay alive!
+        - subtract reciprocal
+        - priority 1
+        MAXIMIZE average ghost distance if not scared - more important if many ghosts
+        - subtract reciprocal
+        - priority 5
+        MAXIMIZE total scared time - more important when average ghost distance is low
+        - subtract reciprocal
+        - priority 6
+        MAXIMIZE score - account for 1) ghost eating and 2) immediate food eating
+        - subtract reciprocal 
+        - priority 2
+        At a winning state, return max value of combo of some stats + give bonus for score metric
     """
-    "*** YOUR CODE HERE ***"
+    magd_coeff = 50      # min active dist 50
+    score_coeff = 0.5     # score 1
+    max_food_coeff = 5  # food closeness 5
+    msgd_coeff = 0      # min scared dist 1
+    tagd_coeff = 0      # total active dist (average) 1
+    tsgt_coeff = 0      # total scared time 1
+    tsgd_coeff = 0      # total scared distance (average) 1
+
+    score = currentGameState.getScore()
+    if currentGameState.isWin() and score != 0:
+      return magd_coeff + max_food_coeff + msgd_coeff + tagd_coeff + tsgt_coeff + tsgd_coeff + score_coeff*1.0/score # 21.0 + 1.0/score
+
+    pos = currentGameState.getPacmanPosition()
+    food = currentGameState.getFood()
+    ghostStates = currentGameState.getGhostStates()
+    ghostPos = currentGameState.getGhostPositions()
+    scaredTimes = [ghostState.scaredTimer for ghostState in ghostStates]
+
+    (min_food_dist, max_food_dist) = util.getMinMaxManhattanToFood(pos, food)
+
+    min_active_ghost_dist = sys.maxsize
+    total_active_ghost_dist = 0
+
+    min_scared_ghost_dist = sys.maxsize
+    total_scared_ghost_dist = 0
+    total_scared_ghost_time = 0
+
+    ghost_count = len(ghostPos)
+    scared_ghost_count = 0
+    
+    for i in range(ghost_count):
+        d = util.manhattanDistance(pos, ghostPos[i])
+        if scaredTimes[i] > 0:
+          total_scared_ghost_time += scaredTimes[i]
+          total_scared_ghost_dist += d
+          if min_scared_ghost_dist > d:
+            min_scared_ghost_dist = d
+          scared_ghost_count += 1
+        else:
+          total_active_ghost_dist += d
+          if min_active_ghost_dist > d:
+            min_active_ghost_dist = d
+    
+    if ghost_count - scared_ghost_count != 0:
+      total_active_ghost_dist /= float(ghost_count - scared_ghost_count)
+    if scared_ghost_count != 0:
+      total_scared_ghost_dist /= float(scared_ghost_count)
+    if min_scared_ghost_dist != 0:
+      min_scared_ghost_dist = 1.0/min_scared_ghost_dist
+    if min_active_ghost_dist != 0:
+      min_active_ghost_dist = 1.0/min_active_ghost_dist
+    if total_active_ghost_dist != 0:
+      total_active_ghost_dist = 1.0/total_active_ghost_dist
+    if total_scared_ghost_dist != 0:
+      total_scared_ghost_dist = 1.0/total_scared_ghost_dist
+    if total_scared_ghost_time != 0:
+      total_scared_ghost_time = 1.0/total_scared_ghost_time
+    if score != 0:
+      score = 1.0/score
+    
+    return (max_food_coeff * 1.0/max_food_dist + 
+            msgd_coeff * min_scared_ghost_dist - 
+            magd_coeff * min_active_ghost_dist -
+            tagd_coeff * total_active_ghost_dist -
+            tsgd_coeff * total_scared_ghost_dist - 
+            tsgt_coeff * total_scared_ghost_time - 
+            score_coeff * score)
+
     util.raiseNotDefined()
 
 # Abbreviation
