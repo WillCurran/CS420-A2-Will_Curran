@@ -140,23 +140,22 @@ class MinimaxAgent(MultiAgentSearchAgent):
     """
       Your minimax agent (question 2)
     """
-    def maxState(self, gameState, depth): # get max state or max action?
+    def maxState(self, gameState, depth):
       if gameState.isLose() or gameState.isWin() or depth >= self.depth:
-        return (None, gameState) # problem with no action here?
+        return (None, gameState)
       actions = gameState.getLegalActions()
       max_state = None
       max_action = None
       for action in actions:
-        local_max_successor = self.minState(1, gameState.generateSuccessor(0, action), depth)[1] # is 1 here general enough?
+        local_max_successor = self.minState(1, gameState.generateSuccessor(0, action), depth)[1]
         if max_state == None or self.evaluationFunction(local_max_successor) > self.evaluationFunction(max_state):
           max_state = local_max_successor
           max_action = action
-      # print "Max of " + str(self.evaluationFunction(max_state))
       return (max_action, max_state)
     
     def minState(self, agentIndex, gameState, depth):
       if gameState.isLose() or gameState.isWin():
-        return (None, gameState) # problem with no action here?
+        return (None, gameState)
       actions = gameState.getLegalActions(agentIndex)
       min_state = None
       min_action = None
@@ -167,7 +166,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
           local_min_successor = self.minState(agentIndex + 1, gameState.generateSuccessor(agentIndex, action), depth)[1]
         if min_state == None or self.evaluationFunction(local_min_successor) < self.evaluationFunction(min_state):
           min_state = local_min_successor
-      # print "Min of " + str(self.evaluationFunction(min_state))
       return (min_action, min_state)
     
     def getAction(self, gameState):
@@ -176,7 +174,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
           and self.evaluationFunction.
         """
         best_move = self.maxState(gameState, 0)
-        # print "Choice is: " + str(self.evaluationFunction(best_move[0]))
         return best_move[0]
         util.raiseNotDefined()
 
@@ -185,27 +182,25 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
       Your minimax agent with alpha-beta pruning (question 3)
     """
 
-    def maxState(self, gameState, depth, a, b): # get max state or max action?
+    def maxState(self, gameState, depth, a, b):
       if gameState.isLose() or gameState.isWin() or depth >= self.depth:
-        return (None, gameState) # problem with no action here?
+        return (None, gameState)
       actions = gameState.getLegalActions()
       max_state = None
       max_action = None
       for action in actions:
-        local_max_successor = self.minState(1, gameState.generateSuccessor(0, action), depth, a, b)[1] # is 1 here general enough?
+        local_max_successor = self.minState(1, gameState.generateSuccessor(0, action), depth, a, b)[1]
         if max_state == None or self.evaluationFunction(local_max_successor) > self.evaluationFunction(max_state):
           max_state = local_max_successor
           max_action = action
         if self.evaluationFunction(max_state) > b:
-          # print "Returning by beta test: " + str(self.evaluationFunction(max_state))
           return (max_action, max_state)
         a = max(a, self.evaluationFunction(max_state))
-      # print "Max of " + str(self.evaluationFunction(max_state))
       return (max_action, max_state)
     
     def minState(self, agentIndex, gameState, depth, a, b):
       if gameState.isLose() or gameState.isWin():
-        return (None, gameState) # problem with no action here?
+        return (None, gameState)
       actions = gameState.getLegalActions(agentIndex)
       min_state = None
       min_action = None
@@ -217,10 +212,8 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         if min_state == None or self.evaluationFunction(local_min_successor) < self.evaluationFunction(min_state):
           min_state = local_min_successor
         if self.evaluationFunction(min_state) < a:
-          # print "Returning by alpha test: " + str(self.evaluationFunction(min_state))
           return (min_action, min_state)
         b = min(b, self.evaluationFunction(min_state))
-      # print "Min of " + str(self.evaluationFunction(min_state))
       return (min_action, min_state)
     
     def getAction(self, gameState):
@@ -230,9 +223,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
         a = -sys.maxsize
         b = sys.maxsize
-        # print "A: " + str(a) + " B: " + str(b)
         best_move = self.maxState(gameState, 0, a, b)
-        # print "Choice is: " + str(self.evaluationFunction(best_move[0]))
         return best_move[0]
         util.raiseNotDefined()
 
@@ -241,7 +232,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
       Your expectimax agent (question 4)
     """
 
-    def maxState(self, gameState, depth): # get max state or max action?
+    def maxAction(self, gameState, depth):
       if gameState.isLose() or gameState.isWin() or depth >= self.depth:
         return None
       actions = gameState.getLegalActions()
@@ -252,10 +243,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         if max_action == None or expectation > max_eval:
           max_eval = expectation
           max_action = action
-      # print "Max move: " + str(max_action)
       return max_action
-      # get it to be a leaf by returning leaf through expState?
-      # can't be sure of which to choose
     
     def expState(self, agentIndex, gameState, depth):
       # be sure to return states of leaves so max can see them
@@ -266,10 +254,10 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
       for action in actions:
         if agentIndex == gameState.getNumAgents() - 1:
           successor = gameState.generateSuccessor(agentIndex, action) # this is a player
-          ma = self.maxState(successor, depth + 1) # the max action from this player gameState
+          ma = self.maxAction(successor, depth + 1) # the max action from this player gameState
           if ma == None: # reached leaf
             expectation += self.evaluationFunction(successor)
-          else: # get expectation of subtree which max has chosen -- REDUNDANT?
+          else: # get expectation of subtree which max has chosen
             successor_2_along_max_path = successor.generateSuccessor(0, ma)
             expectation += self.expState(1, successor_2_along_max_path, depth + 1) # get expectation of the chosen max action
         else:
@@ -282,11 +270,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
           Returns the minimax action from the current gameState using self.depth
           and self.evaluationFunction.
         """
-        a = -sys.maxsize
-        b = sys.maxsize
-        # print "A: " + str(a) + " B: " + str(b)
-        best_move = self.maxState(gameState, 0)
-        # print "Choice is: " + str(self.evaluationFunction(best_move[0]))
+        best_move = self.maxAction(gameState, 0)
         return best_move
         util.raiseNotDefined()
 
@@ -295,7 +279,7 @@ def betterEvaluationFunction(currentGameState):
       Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
       evaluation function (question 5).
 
-      DESCRIPTION: 
+      DESCRIPTION (predictions before testing):
         MINIMIZE food closeness - less important if many ghosts
         - add reciprocal
         - priority 3
@@ -315,6 +299,10 @@ def betterEvaluationFunction(currentGameState):
         - subtract reciprocal 
         - priority 2
         At a winning state, return max value of combo of some stats + give bonus for score metric
+
+        WEAKNESS: does not know when to eat ghosts when right next to them!
+        - attempted a score coefficient booster, but we require knowledge of previuous states to really solve
+        this problem in the way which I've thought about it
     """
     magd_coeff = 50      # min active dist 50
     score_coeff = 0.5     # score 1
